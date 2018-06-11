@@ -13,6 +13,8 @@
  - When we selection an item in the view, the item gets assigned to the currentSelection stored property.  So now we know which item the user wants.
  - Our users purchase an item when they press the purchase button so we need to create an action
  - A convenience method does nothing more than wrap a function around an accessor we can already use.   This just gives more context to developers about the code
+ - An alert view is represented by the class UIAlertcontroller
+ - Create an alert action with UIAlertACtion.  The handler: takes a function that has an argument of UIAlertAction and returns void <#T##((UIAlertAction) -> Void)?##((UIAlertAction) -> Void)?##(UIAlertAction) -> Void#>)
  */
 
 import UIKit
@@ -54,12 +56,6 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         setupCollectionViewCells()
-        print(vendingMachine.inventory)
-        
-        balanceLabel.text = "$\(vendingMachine.amountDeposited)"
-        totalLabel.text = "$0.00"
-        priceLabel.text = "$0.00"
-        quantityLabel.text = "1"
         
         updateDisplayWith(balance: vendingMachine.amountDeposited, totalPrice: 0, itemPrice: 0, itemQuantity: 1)
     }
@@ -94,8 +90,19 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             do {
                 try vendingMachine.vend(selection: currentSelection, quantity: Int(quantityStepper.value))
                 updateDisplayWith(balance: vendingMachine.amountDeposited, totalPrice: 0.00, itemPrice: 0, itemQuantity: 1)
-            } catch {
-                // FIXME: Error handling code
+                
+            } catch VendingMachineError.outOfStock {
+                showAlertWith(title: "Out of Stock", message: "This item is unavailable.  Please make another selection")
+                
+            } catch VendingMachineError.invalidSelection {
+                showAlertWith(title: "Invalid Selection", message: "Please make another selection")
+                
+            } catch VendingMachineError.insufficientFunds(let required) {
+                let message = "You need $\(required) to complete the transaction"
+                showAlertWith(title: "Insufficient Funds", message: message)
+                
+            } catch let error {
+                fatalError("\(error)")
             }
             
             //Deselect cell highlight after successful purchase()
@@ -147,6 +154,36 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
             updateTotalPrice(for: item)
         }
     }
+    
+    
+    func showAlertWith(title: String, message: String, style: UIAlertControllerStyle = .alert) {
+        //Creation of alertConroller
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: style)
+        
+        
+        //Created dismissAlert so we can pass in function that matches handler type <#T##((UIAlertAction) -> Void)?##((UIAlertAction) -> Void)?##(UIAlertAction) -> Void#>
+        let okAction = UIAlertAction(title: "Ok", style: .default, handler:  dismissAlert)
+        
+        //Add action to controller
+        alertController.addAction(okAction)
+        
+        //Ask current viewController to show another view which is controlled by separate UIAlertController - on top of the current view.
+        //We do that by using the present() method which takes a viewController to present.  This is used to present a modal interface.
+        present(alertController, animated: true, completion: nil)
+        
+        
+    }
+    
+    func dismissAlert(sender: UIAlertAction) -> Void {
+        //If we hit an error, we reset everything
+        updateDisplayWith(balance: 0, totalPrice: 0, itemPrice: 0, itemQuantity: 1)
+    }
+    
+    @IBAction func depositFunds() {
+        vendingMachine.deposit(5.0)
+        updateDisplayWith(balance: vendingMachine.amountDeposited)
+    }
+    
     
     // MARK: UICollectionViewDataSource
     

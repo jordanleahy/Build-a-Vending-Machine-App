@@ -176,7 +176,7 @@ class FoodVendingMachine: VendingMachine {
             
             inventory.updateValue(item, forKey: selection)
          
-        // If amount deposited is less than totalPrice
+            // If amount deposited is less than totalPrice
         } else {
             let amountRequired = totalPrice - amountDeposited
             throw VendingMachineError.insufficientFunds(required: amountRequired) //We use the insufficientFunds required associated value to pass in amountRequired
@@ -185,6 +185,7 @@ class FoodVendingMachine: VendingMachine {
     }
     
     func deposit(_ amount: Double) {
+        amountDeposited += amount
     }
     
     func item(forSelection selection: VendingSelection) -> VendingItem? {
