@@ -12,6 +12,7 @@
  - Once we know what a users selection is, we can build the func to build
  - When we selection an item in the view, the item gets assigned to the currentSelection stored property.  So now we know which item the user wants.
  - Our users purchase an item when they press the purchase button so we need to create an action
+ - A convenience method does nothing more than wrap a function around an accessor we can already use.   This just gives more context to developers about the code
  */
 
 import UIKit
@@ -26,11 +27,11 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var quantityLabel: UILabel!
     @IBOutlet weak var priceLabel: UILabel!
+    @IBOutlet weak var quantityStepper: UIStepper!
     
     //add stored property to store our vendingMachine and set the type to be the protocol type rather than the class so we can switch out vending machines in the future
     let vendingMachine: VendingMachine
     var currentSelection: VendingSelection? //Optional because at launch it will be nil
-    var quantity = 1
     
     //since the vendingMachine property doesn't have an initial value, we need to initialize it via init method
     //Use built in view controller classed built-in initializer and it is REQUIRED
@@ -54,6 +55,13 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         // Do any additional setup after loading the view, typically from a nib.
         setupCollectionViewCells()
         print(vendingMachine.inventory)
+        
+        balanceLabel.text = "$\(vendingMachine.amountDeposited)"
+        totalLabel.text = "$0.00"
+        priceLabel.text = "$0.00"
+        quantityLabel.text = "1"
+        
+        updateDisplayWith(balance: vendingMachine.amountDeposited, totalPrice: 0, itemPrice: 0, itemQuantity: 1)
     }
 
     override func didReceiveMemoryWarning() {
@@ -84,9 +92,16 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     @IBAction func purchase() {
         if let currentSelection = currentSelection { // 1st. Check if currentSelection is nil
             do {
-                try vendingMachine.vend(selection: currentSelection, quantity: quantity) //
+                try vendingMachine.vend(selection: currentSelection, quantity: Int(quantityStepper.value))
+                updateDisplayWith(balance: vendingMachine.amountDeposited, totalPrice: 0.00, itemPrice: 0, itemQuantity: 1)
             } catch {
                 // FIXME: Error handling code
+            }
+            
+            //Deselect cell highlight after successful purchase()
+            if let indexPath = collectionView.indexPathsForSelectedItems?.first { //I'm asking collectionView which cells are selected here
+                collectionView.deselectItem(at: indexPath, animated: true)
+                updateCell(having: indexPath, selected: false)
             }
         } else {
             // FIXME: Alert user to no selection
@@ -94,6 +109,44 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         
     }
     
+    //This method accepts a series of optional arguments for each label.text
+    func updateDisplayWith(balance: Double? = nil, totalPrice: Double? = nil, itemPrice: Double? = nil, itemQuantity: Int? = nil) {
+        
+        
+        if let balanceValue = balance {
+            balanceLabel.text = "\(balanceValue)"
+        }
+        
+        if let totalValue = totalPrice {
+            totalLabel.text = "\(totalValue)"
+        }
+        
+        if let priceValue = itemPrice {
+            priceLabel.text = "$\(priceValue)"
+        }
+        
+        if let quantityValue = itemQuantity {
+            quantityLabel.text = "\(quantityValue)"
+        }
+        
+    }
+    
+    
+    func updateTotalPrice(for item: VendingItem) {
+        //totalLabel.text = "$\(item.price * quantityStepper.value)"
+        let totalPrice = item.price * quantityStepper.value
+        updateDisplayWith(totalPrice: totalPrice)
+    }
+    
+    // Add UIStepper control for quantity
+    @IBAction func updateQuantity(_ sender: UIStepper) {
+        let quantity = Int(quantityStepper.value)
+        updateDisplayWith(itemQuantity: quantity)
+        
+        if let currentSelection = currentSelection, let item = vendingMachine.item(forSelection: currentSelection) {
+            updateTotalPrice(for: item)
+        }
+    }
     
     // MARK: UICollectionViewDataSource
     
@@ -113,11 +166,25 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     // MARK: - UICollectionViewDelegate
     // Modeling the Vending Machine
     
+    //When selecting an item, we execute this code
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         updateCell(having: indexPath, selected: true)
         
-        //[index.row] gives us the position we're tapping and we can use this index number again to look in the selection[array]
+        quantityStepper.value = 1 //Everytime we select a new item, the quantity goes back to 1 be resetting the quantityStepper.value
+        
+        updateDisplayWith(totalPrice: 0, itemQuantity: 1)
+        
+        //[index.row] gives us the position we're tapping and we can use this index number again to look in the selection[array] and assign it to currentSelection
         currentSelection = vendingMachine.selection[indexPath.row]
+        
+        
+        //Update item price and totalprice
+        if let currentSelection = currentSelection, let item = vendingMachine.item(forSelection: currentSelection) {
+            
+            let totalPrice =  item.price * quantityStepper.value
+            
+            updateDisplayWith(totalPrice: totalPrice, itemPrice: item.price)
+        }
     }
     
     func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
