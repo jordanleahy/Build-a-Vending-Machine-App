@@ -5,6 +5,14 @@
 //  Created by Pasan Premaratne on 12/1/16.
 //  Copyright © 2016 Treehouse Island, Inc. All rights reserved.
 //
+/*
+ Helpful Notes
+ - A collectionView stores and displays data using indexes and it's often store in a indexPath argument
+ - When we tap on an item, we need to save it someplace to do something with it so create new stored property as optional VendingSelection
+ - Once we know what a users selection is, we can build the func to build
+ - When we selection an item in the view, the item gets assigned to the currentSelection stored property.  So now we know which item the user wants.
+ - Our users purchase an item when they press the purchase button so we need to create an action
+ */
 
 import UIKit
 
@@ -18,11 +26,34 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
     @IBOutlet weak var balanceLabel: UILabel!
     @IBOutlet weak var quantityLabel: UILabel!
     @IBOutlet weak var priceLabel: UILabel!
+    
+    //add stored property to store our vendingMachine and set the type to be the protocol type rather than the class so we can switch out vending machines in the future
+    let vendingMachine: VendingMachine
+    var currentSelection: VendingSelection? //Optional because at launch it will be nil
+    var quantity = 1
+    
+    //since the vendingMachine property doesn't have an initial value, we need to initialize it via init method
+    //Use built in view controller classed built-in initializer and it is REQUIRED
+    required init?(coder aDecoder: NSCoder) {
+        do {
+            //Convert plist into dictionary
+            let dictionary = try PlistConverter.dictionary(fromFile: "VendingInventory", ofType: "plist")
+            // Once we have dictionary, create an inventory
+            let inventory = try InventoryUnarchiver.vendingInventory(fromDictionary: dictionary)
+            //Use inventory to initialize the vendingMachine stored property
+            self.vendingMachine = FoodVendingMachine(inventory: inventory)
+        } catch let error {
+            fatalError("\(error)")
+        }
+        
+        super.init(coder: aDecoder)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         setupCollectionViewCells()
+        print(vendingMachine.inventory)
     }
 
     override func didReceiveMemoryWarning() {
@@ -47,22 +78,46 @@ class ViewController: UIViewController, UICollectionViewDataSource, UICollection
         collectionView.collectionViewLayout = layout
     }
     
+    // MARK: - Vending Machine
+    
+    //As a user, when I click the purchase button, this happens.
+    @IBAction func purchase() {
+        if let currentSelection = currentSelection { // 1st. Check if currentSelection is nil
+            do {
+                try vendingMachine.vend(selection: currentSelection, quantity: quantity) //
+            } catch {
+                // FIXME: Error handling code
+            }
+        } else {
+            // FIXME: Alert user to no selection
+        }
+        
+    }
+    
+    
     // MARK: UICollectionViewDataSource
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return 12
+        return vendingMachine.selection.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseIdentifier, for: indexPath) as? VendingItemCell else { fatalError() }
         
+        let item = vendingMachine.selection[indexPath.row]
+        cell.iconView.image = item.icon()
+        
         return cell
     }
     
     // MARK: - UICollectionViewDelegate
+    // Modeling the Vending Machine
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         updateCell(having: indexPath, selected: true)
+        
+        //[index.row] gives us the position we're tapping and we can use this index number again to look in the selection[array]
+        currentSelection = vendingMachine.selection[indexPath.row]
     }
     
     func collectionView(_ collectionView: UICollectionView, didDeselectItemAt indexPath: IndexPath) {
